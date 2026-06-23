@@ -113,9 +113,11 @@ public final class TemplateGenerator {
         public final BufferedImage quantizedImage;
         public final Template template;
 
-        public GenerationResult(BufferedImage processedImage,
-                                BufferedImage quantizedImage,
-                                Template template) {
+        public GenerationResult(
+            BufferedImage processedImage,
+            BufferedImage quantizedImage,
+            Template template
+        ) {
             this.processedImage = processedImage;
             this.quantizedImage = quantizedImage;
             this.template = template;
