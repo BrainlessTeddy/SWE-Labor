@@ -1,5 +1,9 @@
 package com.artcreator.ui;
 
+import com.artcreator.application.InnerGenerationCallback;
+import com.artcreator.application.TemplateGeneration;
+import com.artcreator.application.TemplateGenerationAsync;
+import com.artcreator.application.TemplateGenerationDefault;
 import com.artcreator.history.UndoRedoManager;
 import com.artcreator.model.Project;
 import com.artcreator.model.Template;
@@ -8,6 +12,7 @@ import com.artcreator.template.TemplateRenderer;
 
 import javax.swing.SwingWorker;
 import java.awt.image.BufferedImage;
+import java.nio.Buffer;
 
 /**
  * Coordinates regeneration of the template in response to user actions.
@@ -29,14 +34,27 @@ public final class EditController {
     private final UndoRedoManager history = new UndoRedoManager();
     private final Listener listener;
     private final javax.swing.Timer debounce;
-    private SwingWorker<TemplateGenerator.GenerationResult, Void> running;
+    private final TemplateGenerationAsync templateGenerationAsync;
     private boolean snapshotPendingForNextChange = true;
 
     public EditController(Project project, Listener listener) {
+        this(project, listener, new TemplateGenerationAsyncSwing(defaultTempGen()));
+    }
+
+    public EditController(
+        Project project,
+        Listener listener,
+        TemplateGenerationAsync templateGenerationAsync
+    ) {
         this.project = project;
         this.listener = listener;
+        this.templateGenerationAsync = templateGenerationAsync;
         this.debounce = new javax.swing.Timer(150, e -> regenerateNow());
         debounce.setRepeats(false);
+    }
+
+    private static TemplateGeneration defaultTempGen() {
+        return new TemplateGenerationDefault();
     }
 
     public Project getProject() { return project; }
@@ -48,6 +66,7 @@ public final class EditController {
             history.snapshot(project);
             snapshotPendingForNextChange = false;
         }
+
         project.markDirty();
         listener.onProjectChanged(project);
         debounce.restart();
@@ -58,32 +77,41 @@ public final class EditController {
 
     public void regenerateNow() {
         if (project.getOriginal() == null) return;
-        if (running != null && !running.isDone()) running.cancel(true);
 
         listener.onBusyStateChanged(true);
-        running = new SwingWorker<>() {
-            @Override protected TemplateGenerator.GenerationResult doInBackground() {
-                return TemplateGenerator.generate(project.getOriginal(), project.getParameters());
-            }
-            @Override protected void done() {
-                try {
-                    if (isCancelled()) return;
-                    TemplateGenerator.GenerationResult r = get();
-                    project.setProcessed(r.processedImage);
-                    project.setTemplate(r.template);
-                    BufferedImage preview = TemplateRenderer.renderPreview(
-                            r.template, 96.0,
+        templateGenerationAsync.generateAsync(
+            project.getOriginal(),
+            project.getParameters(),
+            new InnerGenerationCallback() {
+                @Override public void onSuccess(TemplateGenerator.GenerationResult result) {
+                    try {
+
+                        project.setProcessed(result.processedImage);
+                        project.setTemplate(result.template);
+
+                        BufferedImage preview = TemplateRenderer.renderPreview(
+                            result.template,
+                            96.0,
                             project.getParameters().isShowColorCodes(),
-                            project.getParameters().isShowGrid());
-                    listener.onTemplateGenerated(project, preview);
-                } catch (Exception ex) {
-                    listener.onError("Vorlage konnte nicht erzeugt werden", ex);
-                } finally {
-                    listener.onBusyStateChanged(false);
+                            project.getParameters().isShowGrid()
+                        );
+
+                        listener.onTemplateGenerated(project, preview);
+
+                    } finally {
+                        listener.onBusyStateChanged(false);
+                    }
+                }
+
+                @Override public void onFailure(Throwable cause) {
+                    try {
+                        listener.onError("Vorlage konnte nicht erzeugt werden", cause);
+                    } finally {
+                        listener.onBusyStateChanged(false);
+                    }
                 }
             }
-        };
-        running.execute();
+        );
     }
 
     public void undo() {

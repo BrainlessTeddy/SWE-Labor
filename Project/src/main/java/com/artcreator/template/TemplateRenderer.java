@@ -153,8 +153,12 @@ public final class TemplateRenderer {
     }
 
     /** Convenience: render a preview to a fresh BufferedImage at the requested DPI. */
-    public static java.awt.image.BufferedImage renderPreview(Template tmpl, double dpi,
-                                                             boolean showCodes, boolean showGrid) {
+    public static java.awt.image.BufferedImage renderPreview(
+        Template tmpl,
+        double dpi,
+        boolean showCodes,
+        boolean showGrid
+    ) {
         double mmPerInch = 25.4;
         int wPx = (int) Math.ceil(tmpl.getBoardWidthMm()  / mmPerInch * dpi);
         int hPx = (int) Math.ceil(tmpl.getBoardHeightMm() / mmPerInch * dpi);
