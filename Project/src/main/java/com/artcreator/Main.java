@@ -1,14 +1,14 @@
 package com.artcreator;
 
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
 import com.artcreator.creator.CreatorFactory;
 import com.artcreator.creator.port.Creator;
 import com.artcreator.statemachine.StateMachineFactory;
 import com.artcreator.statemachine.port.StateMachine;
 import com.artcreator.ui.CreatorController;
 import com.artcreator.ui.MainFrame;
-
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 
 /**
  * Entry point. Verdrahtet die Komponenten (Zustandsmaschine, Creator-Fassade,
