@@ -1,6 +1,7 @@
 package com.artcreator.ui;
 
 import com.artcreator.creator.port.Creator;
+import com.artcreator.io.ProjectIO;
 import com.artcreator.model.Parameters;
 import com.artcreator.output.BuildInstructionsGenerator;
 import com.artcreator.output.PartsListGenerator;
@@ -29,6 +30,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Toolkit;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -36,14 +38,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Top-level Swing-Fenster – im Sinne von MVC eine <b>reine View</b> für den
- * Use Case „Vorlage erstellen".
+ * Top-level Swing-Fenster – im Sinne von MVC eine <b>reine View</b>.
  *
  * <p>Die View enthält keine Geschäftslogik: Sie baut die Widgets auf, leitet
- * Use-Case-Aktionen über Action-Commands an den {@link CreatorController}
- * weiter und bietet Anzeige-Methoden ({@code setPreview}, {@code setBusy} …),
- * die der Controller nach Zustandsänderungen aufruft. Das Domänenmodell liegt
- * hinter der {@link Creator}-Fassade; die View greift nur lesend darauf zu, um
+ * Aktionen über Action-Commands an den {@link CreatorController} weiter und
+ * bietet Anzeige-Methoden ({@code setPreview}, {@code setBusy} …), die der
+ * Controller nach Zustandsänderungen aufruft. Das Domänenmodell liegt hinter
+ * der {@link Creator}-Fassade; die View greift nur lesend darauf zu, um
  * Ergebnisse anzuzeigen bzw. (für nicht zum Use Case gehörende Aktionen wie
  * Export/Druck) die fertige Vorlage abzuholen.</p>
  */
@@ -53,25 +54,25 @@ public final class MainFrame extends JFrame {
     private final Creator creator;
 
     /** Eingabepuffer der View für die Parameter (wird vom Controller transportiert). */
-    private final Parameters parameterBuffer = new Parameters();
+    private Parameters parameterBuffer = new Parameters();
 
     private final ComparisonPanel comparison = new ComparisonPanel();
-    private final ParameterPanel parameters;
+    private ParameterPanel parameters;
     private final JLabel status = new JLabel(" ");
     private final JProgressBar busy = new JProgressBar();
     private final JSplitPane mainSplit;
 
-    private JMenuItem miExportPng, miExportPdf, miPrint, miPartsList, miBuildInstructions;
+    private JMenuItem miUndo, miRedo, miSave, miSaveAs,
+            miExportPng, miExportPdf, miPrint, miPartsList, miBuildInstructions;
 
-    /** Widgets, deren Klick eine Use-Case-Operation auslöst (vom Controller verdrahtet). */
-    private final List<AbstractButton> openImageTriggers = new ArrayList<>();
-    private final List<AbstractButton> regenerateTriggers = new ArrayList<>();
+    /** Widgets, deren Klick eine Operation auslöst (vom Controller verdrahtet). */
+    private final List<AbstractButton> controllerTriggers = new ArrayList<>();
 
     /** Wird vom Controller gesetzt; Default ist ein No-op. */
     private Runnable paramChangeHandler = () -> { };
 
-    /** Zuletzt gewählte Bilddatei – nur für abgeleitete Export-Dateinamen. */
-    private File lastImageFile;
+    /** Zuletzt angezeigtes Originalbild – Identitäts-Schutz gegen unnötige Repaints. */
+    private BufferedImage lastOriginalShown;
 
     public MainFrame(Creator creator) {
         super("3D-Art-Creator");
@@ -94,16 +95,16 @@ public final class MainFrame extends JFrame {
         getContentPane().add(buildStatusBar(), BorderLayout.SOUTH);
 
         setActionsEnabled(false, false);
+        setUndoRedoEnabled(false, false);
     }
 
     /**
-     * Verbindet die Use-Case-Aktionen der View mit dem Controller. Wird nach
-     * der Konstruktion von außen aufgerufen (zweiphasiges Wiring, da Controller
-     * und View sich gegenseitig kennen müssen).
+     * Verbindet die Aktionen der View mit dem Controller. Wird nach der
+     * Konstruktion von außen aufgerufen (zweiphasiges Wiring, da Controller und
+     * View sich gegenseitig kennen müssen).
      */
     public void setController(CreatorController controller) {
-        for (AbstractButton b : openImageTriggers)  b.addActionListener(controller);
-        for (AbstractButton b : regenerateTriggers) b.addActionListener(controller);
+        for (AbstractButton b : controllerTriggers) b.addActionListener(controller);
         this.paramChangeHandler = controller::onParametersChanged;
     }
 
@@ -115,8 +116,29 @@ public final class MainFrame extends JFrame {
         ch.setFileFilter(new FileNameExtensionFilter(
                 "Bilddateien (jpg, png, bmp, gif)", "jpg", "jpeg", "png", "bmp", "gif"));
         if (ch.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return null;
-        this.lastImageFile = ch.getSelectedFile();
-        return lastImageFile;
+        return ch.getSelectedFile();
+    }
+
+    /** Datei-Dialog zum Speichern eines Projekts; hängt die Endung an. */
+    public File chooseSaveProjectFile() {
+        JFileChooser ch = new JFileChooser();
+        ch.setFileFilter(new FileNameExtensionFilter(
+                "3D-Art Projektdatei (." + ProjectIO.EXTENSION + ")", ProjectIO.EXTENSION));
+        if (ch.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return null;
+        File f = ch.getSelectedFile();
+        if (!f.getName().toLowerCase().endsWith("." + ProjectIO.EXTENSION)) {
+            f = new File(f.getParentFile(), f.getName() + "." + ProjectIO.EXTENSION);
+        }
+        return f;
+    }
+
+    /** Datei-Dialog zum Öffnen eines Projekts; {@code null} bei Abbruch. */
+    public File chooseOpenProjectFile() {
+        JFileChooser ch = new JFileChooser();
+        ch.setFileFilter(new FileNameExtensionFilter(
+                "3D-Art Projektdatei (." + ProjectIO.EXTENSION + ")", ProjectIO.EXTENSION));
+        if (ch.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return null;
+        return ch.getSelectedFile();
     }
 
     /** Aktueller Eingabepuffer der Parameter (vom Controller an die Fassade gereicht). */
@@ -124,9 +146,20 @@ public final class MainFrame extends JFrame {
         return parameterBuffer;
     }
 
+    /** Baut das Parameter-Panel neu auf (nach Undo/Redo/Projekt öffnen). */
+    public void refreshParameters(Parameters p) {
+        this.parameterBuffer = p.copy();
+        ParameterPanel fresh = new ParameterPanel(parameterBuffer, () -> paramChangeHandler.run());
+        mainSplit.setRightComponent(fresh);
+        mainSplit.revalidate();
+        mainSplit.repaint();
+        this.parameters = fresh;
+    }
+
     public void setOriginalImage(BufferedImage img) {
+        if (img == lastOriginalShown) return;   // gleiche Instanz -> kein Repaint/Zoom-Reset
+        lastOriginalShown = img;
         comparison.setOriginal(img);
-        if (lastImageFile != null) status.setText("Bild geladen: " + lastImageFile.getName());
     }
 
     public void setPreview(BufferedImage preview) {
@@ -147,11 +180,18 @@ public final class MainFrame extends JFrame {
     }
 
     public void setActionsEnabled(boolean hasImage, boolean hasTemplate) {
+        if (miSave != null)              miSave.setEnabled(hasImage);
+        if (miSaveAs != null)            miSaveAs.setEnabled(hasImage);
         if (miExportPng != null)         miExportPng.setEnabled(hasTemplate);
         if (miExportPdf != null)         miExportPdf.setEnabled(hasTemplate);
         if (miPrint != null)             miPrint.setEnabled(hasTemplate);
         if (miPartsList != null)         miPartsList.setEnabled(hasTemplate);
         if (miBuildInstructions != null) miBuildInstructions.setEnabled(hasTemplate);
+    }
+
+    public void setUndoRedoEnabled(boolean canUndo, boolean canRedo) {
+        if (miUndo != null) miUndo.setEnabled(canUndo);
+        if (miRedo != null) miRedo.setEnabled(canRedo);
     }
 
     public void showError(String msg, Throwable t) {
@@ -167,9 +207,17 @@ public final class MainFrame extends JFrame {
 
         JMenuBar mb = new JMenuBar();
         JMenu file = new JMenu("Datei");
-        JMenuItem open = item("Bild oeffnen...", KeyStroke.getKeyStroke(KeyEvent.VK_O, mod));
-        registerOpenImage(open);
-        file.add(open);
+        file.add(trigger(item("Bild oeffnen...", KeyStroke.getKeyStroke(KeyEvent.VK_O, mod)),
+                CreatorController.CMD_OPEN_IMAGE));
+        file.addSeparator();
+        miSave = trigger(item("Projekt speichern", KeyStroke.getKeyStroke(KeyEvent.VK_S, mod)),
+                CreatorController.CMD_SAVE);
+        miSaveAs = trigger(item("Projekt speichern unter...", null), CreatorController.CMD_SAVE_AS);
+        file.add(miSave);
+        file.add(miSaveAs);
+        file.add(trigger(item("Projekt oeffnen...",
+                        KeyStroke.getKeyStroke(KeyEvent.VK_O, mod | InputEvent.SHIFT_DOWN_MASK)),
+                CreatorController.CMD_OPEN_PROJECT));
         file.addSeparator();
         miExportPng = item("PNG-Seiten exportieren...", null);
         miExportPng.addActionListener(e -> exportPng());
@@ -194,9 +242,16 @@ public final class MainFrame extends JFrame {
         mb.add(file);
 
         JMenu edit = new JMenu("Bearbeiten");
-        JMenuItem regen = item("Vorlage neu erzeugen", KeyStroke.getKeyStroke(KeyEvent.VK_R, mod));
-        registerRegenerate(regen);
-        edit.add(regen);
+        miUndo = trigger(item("Rueckgaengig", KeyStroke.getKeyStroke(KeyEvent.VK_Z, mod)),
+                CreatorController.CMD_UNDO);
+        miRedo = trigger(item("Wiederholen",
+                        KeyStroke.getKeyStroke(KeyEvent.VK_Z, mod | InputEvent.SHIFT_DOWN_MASK)),
+                CreatorController.CMD_REDO);
+        edit.add(miUndo);
+        edit.add(miRedo);
+        edit.addSeparator();
+        edit.add(trigger(item("Vorlage neu erzeugen", KeyStroke.getKeyStroke(KeyEvent.VK_R, mod)),
+                CreatorController.CMD_REGENERATE));
         mb.add(edit);
 
         JMenu help = new JMenu("Hilfe");
@@ -210,13 +265,14 @@ public final class MainFrame extends JFrame {
     private JComponent buildToolbar() {
         JToolBar tb = new JToolBar();
         tb.setFloatable(false);
-        JButton open = new JButton("Bild oeffnen");
-        registerOpenImage(open);
-        tb.add(open);
+        tb.add(trigger(new JButton("Bild oeffnen"), CreatorController.CMD_OPEN_IMAGE));
+        tb.add(trigger(new JButton("Speichern"), CreatorController.CMD_SAVE));
+        tb.add(trigger(new JButton("Oeffnen"), CreatorController.CMD_OPEN_PROJECT));
         tb.addSeparator();
-        JButton regen = new JButton("Neu erzeugen");
-        registerRegenerate(regen);
-        tb.add(regen);
+        tb.add(trigger(new JButton("Rueckgaengig"), CreatorController.CMD_UNDO));
+        tb.add(trigger(new JButton("Wiederholen"), CreatorController.CMD_REDO));
+        tb.addSeparator();
+        tb.add(trigger(new JButton("Neu erzeugen"), CreatorController.CMD_REGENERATE));
         tb.addSeparator();
         tb.add(button("PDF...", this::exportPdf));
         tb.add(button("PNG...", this::exportPng));
@@ -237,16 +293,13 @@ public final class MainFrame extends JFrame {
         return p;
     }
 
-    /* -------- Verdrahtung der Use-Case-Trigger -------- */
+    /* -------- Verdrahtung der Controller-Trigger -------- */
 
-    private void registerOpenImage(AbstractButton b) {
-        b.setActionCommand(CreatorController.CMD_OPEN_IMAGE);
-        openImageTriggers.add(b);
-    }
-
-    private void registerRegenerate(AbstractButton b) {
-        b.setActionCommand(CreatorController.CMD_REGENERATE);
-        regenerateTriggers.add(b);
+    /** Setzt Action-Command und merkt das Widget für {@link #setController}. */
+    private <T extends AbstractButton> T trigger(T button, String command) {
+        button.setActionCommand(command);
+        controllerTriggers.add(button);
+        return button;
     }
 
     private JMenuItem item(String text, KeyStroke key) {
@@ -345,8 +398,9 @@ public final class MainFrame extends JFrame {
     }
 
     private String baseName() {
-        if (lastImageFile != null) {
-            String n = lastImageFile.getName();
+        File f = (creator.getProjectFile() != null) ? creator.getProjectFile() : creator.getSourceFile();
+        if (f != null) {
+            String n = f.getName();
             int dot = n.lastIndexOf('.');
             return dot > 0 ? n.substring(0, dot) : n;
         }

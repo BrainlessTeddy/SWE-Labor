@@ -32,6 +32,20 @@ public interface Creator extends Subject {
     /** Erzeugt die Vorlage aus Quelle + aktuellen Parametern. */
     void createTemplate();
 
+    /* -------- Zusatz-Operationen (nicht Teil des Use Case, aber unterstützt) -------- */
+
+    /** Macht die letzte Bearbeitung rückgängig. */
+    void undo();
+
+    /** Stellt eine rückgängig gemachte Bearbeitung wieder her. */
+    void redo();
+
+    /** Speichert das Projekt als .3dart-Datei. */
+    void saveProject(File file);
+
+    /** Lädt ein Projekt aus einer .3dart-Datei. */
+    void openProject(File file);
+
     /* -------- Ergebnis nach Zustandsänderung abholen -------- */
 
     State getState();
@@ -43,4 +57,12 @@ public interface Creator extends Subject {
     Template getTemplate();
 
     Parameters getParameters();
+
+    boolean canUndo();
+
+    boolean canRedo();
+
+    File getProjectFile();
+
+    File getSourceFile();
 }

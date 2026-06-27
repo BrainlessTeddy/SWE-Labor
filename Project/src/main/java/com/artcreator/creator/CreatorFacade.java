@@ -60,6 +60,31 @@ public final class CreatorFacade implements CreatorFactory, Creator {
         stateMachine.setState(newState);
     }
 
+    @Override
+    public synchronized void undo() {
+        if (!creatorImpl.canUndo()) return;
+        stateMachine.setState(CreatorState.GENERATING);
+        stateMachine.setState(creatorImpl.undo());
+    }
+
+    @Override
+    public synchronized void redo() {
+        if (!creatorImpl.canRedo()) return;
+        stateMachine.setState(CreatorState.GENERATING);
+        stateMachine.setState(creatorImpl.redo());
+    }
+
+    @Override
+    public synchronized void saveProject(File file) {
+        creatorImpl.saveProject(file);   // wirft UncheckedIOException bei Fehler
+    }
+
+    @Override
+    public synchronized void openProject(File file) {
+        stateMachine.setState(CreatorState.GENERATING);
+        stateMachine.setState(creatorImpl.openProject(file));
+    }
+
     /* -------- Subject (delegiert an die Zustandsmaschine) -------- */
 
     @Override
@@ -97,5 +122,25 @@ public final class CreatorFacade implements CreatorFactory, Creator {
     @Override
     public Parameters getParameters() {
         return creatorImpl.getParameters();
+    }
+
+    @Override
+    public boolean canUndo() {
+        return creatorImpl.canUndo();
+    }
+
+    @Override
+    public boolean canRedo() {
+        return creatorImpl.canRedo();
+    }
+
+    @Override
+    public File getProjectFile() {
+        return creatorImpl.getProjectFile();
+    }
+
+    @Override
+    public File getSourceFile() {
+        return creatorImpl.getSourceFile();
     }
 }
