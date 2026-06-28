@@ -12,7 +12,6 @@ import com.artcreator.template.TemplateRenderer;
 
 import javax.swing.SwingWorker;
 import java.awt.image.BufferedImage;
-import java.nio.Buffer;
 
 /**
  * Coordinates regeneration of the template in response to user actions.
