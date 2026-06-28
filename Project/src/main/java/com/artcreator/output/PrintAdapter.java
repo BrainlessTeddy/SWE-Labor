@@ -3,7 +3,6 @@ package com.artcreator.output;
 import com.artcreator.model.Parameters;
 import com.artcreator.model.Template;
 
-import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.print.PageFormat;
 import java.awt.print.Pageable;

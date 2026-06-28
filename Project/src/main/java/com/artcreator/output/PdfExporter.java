@@ -148,6 +148,7 @@ public final class PdfExporter {
         os.writeAscii("startxref\n");
         os.writeAscii(xrefOffset + "\n");
         os.writeAscii("%%EOF\n");
+        os.close();
     }
 
     private static String fmt(double v) {
