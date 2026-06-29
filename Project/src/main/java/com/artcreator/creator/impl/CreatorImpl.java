@@ -17,29 +17,24 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Objects;
 
-/**
- * Implementierung der Systemoperationen des Use Case „Vorlage erstellen".
- *
- * <p>Hält den Projektzustand (Originalbild, Parameter, erzeugte Vorlage), die
- * zuletzt gerenderte Vorschau sowie die Undo/Redo-Historie. Jede Operation
- * liefert den Folgezustand zurück; das Schalten der Zustandsmaschine übernimmt
- * die Fassade.</p>
- */
+/* Hier liegt die eigentliche Logik des Use Case. Die Klasse haelt den
+ * Projektzustand (Bild, Parameter, Vorlage), die letzte Vorschau und die
+ * Undo-Historie. Jede Operation gibt den neuen Zustand zurueck; gesetzt wird
+ * er von der Fassade. */
 public final class CreatorImpl {
 
-    /** dpi der Vorschau-Rasterung (entspricht der bisherigen Logik). */
-    private static final double PREVIEW_DPI = 96.0;
+    private static final double PREVIEW_DPI = 96.0;   // Aufloesung der Vorschau
 
     private final Project project = new Project();
     private final UndoRedoManager history = new UndoRedoManager();
     private BufferedImage preview;
 
-    /** true, wenn die nächste Parameteränderung einen neuen Undo-Schritt beginnt. */
+    // true = der naechste Parameter-Edit startet einen neuen Undo-Schritt
     private boolean snapshotPending = true;
 
-    /* ===================== Use-Case-Operationen ===================== */
+    // --- Use-Case-Operationen ---
 
-    /** Liest das Bild ein und setzt es als neue Quelle. */
+    // Bild einlesen und als neue Quelle setzen
     public State loadImage(File file) {
         Objects.requireNonNull(file, "file must not be null");
         try {
@@ -50,14 +45,14 @@ public final class CreatorImpl {
             history.snapshot(project);
             project.setSourceFile(file);
             project.setOriginal(img);
-            snapshotPending = true;          // neuer Bearbeitungs-Batch
+            snapshotPending = true;          // neuer Bearbeitungsabschnitt
             return CreatorState.IMAGE_LOADED;
         } catch (IOException ex) {
             throw new UncheckedIOException("Bild konnte nicht geladen werden", ex);
         }
     }
 
-    /** Übernimmt die übergebenen Parameter in den internen Projektzustand. */
+    // uebergebene Parameter ins Projekt uebernehmen
     public void updateParameters(Parameters from) {
         if (snapshotPending) {
             history.snapshot(project);
@@ -66,7 +61,7 @@ public final class CreatorImpl {
         copyParameters(from, project.getParameters());
     }
 
-    /** Generiert die Vorlage und rendert die Vorschau. */
+    // Vorlage erzeugen und Vorschau rendern
     public State createTemplate() {
         BufferedImage original = project.getOriginal();
         if (original == null) {
@@ -86,7 +81,7 @@ public final class CreatorImpl {
         return CreatorState.TEMPLATE_READY;
     }
 
-    /* ===================== Undo / Redo ===================== */
+    // --- Undo / Redo ---
 
     public State undo() {
         if (!history.undo(project)) return currentState();
@@ -103,7 +98,7 @@ public final class CreatorImpl {
     public boolean canUndo() { return history.canUndo(); }
     public boolean canRedo() { return history.canRedo(); }
 
-    /* ===================== Projekt speichern / öffnen ===================== */
+    // --- Projekt speichern / oeffnen ---
 
     public void saveProject(File file) {
         try {
@@ -130,7 +125,7 @@ public final class CreatorImpl {
         }
     }
 
-    /* ===================== reads ===================== */
+    // --- Getter ---
 
     public BufferedImage getOriginal() { return project.getOriginal(); }
     public BufferedImage getPreview()  { return preview; }
@@ -139,9 +134,9 @@ public final class CreatorImpl {
     public File getProjectFile()       { return project.getProjectFile(); }
     public File getSourceFile()        { return project.getSourceFile(); }
 
-    /* ===================== helper ===================== */
+    // --- Hilfsmethoden ---
 
-    /** Regeneriert nach einer Zustands-Wiederherstellung (Undo/Redo/Open). */
+    // nach Undo/Redo/Oeffnen wieder neu generieren
     private State rebuild() {
         if (project.getOriginal() == null) {
             project.setTemplate(null);
@@ -151,14 +146,14 @@ public final class CreatorImpl {
         return createTemplate();
     }
 
-    /** Aktueller Zustand abgeleitet aus dem Projektinhalt (für No-op-Fälle). */
+    // Zustand aus dem Projektinhalt ableiten (falls nichts zu tun war)
     private State currentState() {
         if (project.getTemplate() != null) return CreatorState.TEMPLATE_READY;
         if (project.getOriginal() != null) return CreatorState.IMAGE_LOADED;
         return CreatorState.NO_IMAGE;
     }
 
-    /** Feldweises Übernehmen der Parameter (zuvor in der UI). */
+    // Parameter Feld fuer Feld kopieren (war vorher in der UI)
     private static void copyParameters(Parameters from, Parameters to) {
         to.setPaperSize(from.getPaperSize());
         to.setOrientation(from.getOrientation());

@@ -5,11 +5,8 @@ import com.artcreator.statemachine.port.Observer;
 import com.artcreator.statemachine.port.State;
 import com.artcreator.statemachine.port.StateMachine;
 
-/**
- * Fassade der StateMachine-Komponente. Kapselt die einzige
- * {@link StateMachineImpl}-Instanz (lazy initialization) und delegiert alle
- * Zugriffe an sie.
- */
+/* Fassade der StateMachine-Komponente. Haelt die einzige StateMachineImpl
+ * (erst beim ersten Zugriff angelegt) und reicht alle Aufrufe an sie weiter. */
 public final class StateMachineFacade implements StateMachineFactory, StateMachine {
 
     private StateMachineImpl stateMachineImpl;
@@ -26,12 +23,12 @@ public final class StateMachineFacade implements StateMachineFactory, StateMachi
     }
 
     private void ensureInitialized() {
-        if (this.stateMachineImpl == null) { /* lazy initialization */
+        if (this.stateMachineImpl == null) { // erst beim ersten Zugriff anlegen
             this.stateMachineImpl = new StateMachineImpl();
         }
     }
 
-    /* -------- delegation to the implementation -------- */
+    // --- alles an die Implementierung weiterreichen ---
 
     @Override
     public State getState() {

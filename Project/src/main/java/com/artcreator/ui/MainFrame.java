@@ -37,23 +37,17 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Top-level Swing-Fenster – im Sinne von MVC eine <b>reine View</b>.
- *
- * <p>Die View enthält keine Geschäftslogik: Sie baut die Widgets auf, leitet
- * Aktionen über Action-Commands an den {@link CreatorController} weiter und
- * bietet Anzeige-Methoden ({@code setPreview}, {@code setBusy} …), die der
- * Controller nach Zustandsänderungen aufruft. Das Domänenmodell liegt hinter
- * der {@link Creator}-Fassade; die View greift nur lesend darauf zu, um
- * Ergebnisse anzuzeigen bzw. (für nicht zum Use Case gehörende Aktionen wie
- * Export/Druck) die fertige Vorlage abzuholen.</p>
- */
+/* Das Hauptfenster. In der MVC-Aufteilung ist das hier die reine View:
+ * keine Geschaeftslogik, nur Widgets aufbauen, Klicks ueber Action-Commands
+ * an den Controller weitergeben und Anzeige-Methoden (setPreview, setBusy ...)
+ * bereitstellen. Das Modell liegt hinter der Creator-Fassade; die View liest
+ * nur das Ergebnis bzw. holt sich fuer Export/Druck die fertige Vorlage. */
 @SuppressWarnings("serial")
 public final class MainFrame extends JFrame {
 
     private final Creator creator;
 
-    /** Eingabepuffer der View für die Parameter (wird vom Controller transportiert). */
+    // hier sammelt die View die Parameter-Eingaben; der Controller holt sie ab
     private Parameters parameterBuffer = new Parameters();
 
     private final ComparisonPanel comparison = new ComparisonPanel();
@@ -65,13 +59,13 @@ public final class MainFrame extends JFrame {
     private JMenuItem miUndo, miRedo, miSave, miSaveAs,
             miExportPng, miExportPdf, miPrint, miPartsList, miBuildInstructions;
 
-    /** Widgets, deren Klick eine Operation auslöst (vom Controller verdrahtet). */
+    // Buttons/Menuepunkte, die der Controller spaeter mit Leben fuellt
     private final List<AbstractButton> controllerTriggers = new ArrayList<>();
 
-    /** Wird vom Controller gesetzt; Default ist ein No-op. */
+    // wird vom Controller gesetzt, vorher passiert nichts
     private Runnable paramChangeHandler = () -> { };
 
-    /** Zuletzt angezeigtes Originalbild – Identitäts-Schutz gegen unnötige Repaints. */
+    // gemerkt, damit wir das gleiche Bild nicht unnoetig neu zeichnen (Zoom bleibt)
     private BufferedImage lastOriginalShown;
 
     public MainFrame(Creator creator) {
@@ -98,19 +92,16 @@ public final class MainFrame extends JFrame {
         setUndoRedoEnabled(false, false);
     }
 
-    /**
-     * Verbindet die Aktionen der View mit dem Controller. Wird nach der
-     * Konstruktion von außen aufgerufen (zweiphasiges Wiring, da Controller und
-     * View sich gegenseitig kennen müssen).
-     */
+    /* Haengt den Controller an die Buttons/Menuepunkte. Wird nach dem Erzeugen
+     * aufgerufen, weil sich View und Controller gegenseitig brauchen. */
     public void setController(CreatorController controller) {
         for (AbstractButton b : controllerTriggers) b.addActionListener(controller);
         this.paramChangeHandler = controller::onParametersChanged;
     }
 
-    /* ============================ View-API ============================ */
+    // --- Methoden, die der Controller aufruft ---
 
-    /** Öffnet einen Datei-Dialog zur Bildauswahl; {@code null} bei Abbruch. */
+    // Datei-Dialog zum Bild auswaehlen, null wenn abgebrochen
     public File chooseImageFile() {
         JFileChooser ch = new JFileChooser();
         ch.setFileFilter(new FileNameExtensionFilter(
@@ -119,7 +110,7 @@ public final class MainFrame extends JFrame {
         return ch.getSelectedFile();
     }
 
-    /** Datei-Dialog zum Speichern eines Projekts; hängt die Endung an. */
+    // Speichern-Dialog fuers Projekt, haengt die Endung an wenn sie fehlt
     public File chooseSaveProjectFile() {
         JFileChooser ch = new JFileChooser();
         ch.setFileFilter(new FileNameExtensionFilter(
@@ -132,7 +123,7 @@ public final class MainFrame extends JFrame {
         return f;
     }
 
-    /** Datei-Dialog zum Öffnen eines Projekts; {@code null} bei Abbruch. */
+    // Oeffnen-Dialog fuers Projekt, null wenn abgebrochen
     public File chooseOpenProjectFile() {
         JFileChooser ch = new JFileChooser();
         ch.setFileFilter(new FileNameExtensionFilter(
@@ -141,12 +132,12 @@ public final class MainFrame extends JFrame {
         return ch.getSelectedFile();
     }
 
-    /** Aktueller Eingabepuffer der Parameter (vom Controller an die Fassade gereicht). */
+    // die aktuell eingestellten Parameter, die der Controller weitergibt
     public Parameters getParameterBuffer() {
         return parameterBuffer;
     }
 
-    /** Baut das Parameter-Panel neu auf (nach Undo/Redo/Projekt öffnen). */
+    // baut das Parameter-Panel neu auf, z.B. nach Undo/Redo oder Projekt oeffnen
     public void refreshParameters(Parameters p) {
         this.parameterBuffer = p.copy();
         ParameterPanel fresh = new ParameterPanel(parameterBuffer, () -> paramChangeHandler.run());
@@ -157,7 +148,7 @@ public final class MainFrame extends JFrame {
     }
 
     public void setOriginalImage(BufferedImage img) {
-        if (img == lastOriginalShown) return;   // gleiche Instanz -> kein Repaint/Zoom-Reset
+        if (img == lastOriginalShown) return;   // gleiches Bild: nicht neu zeichnen, Zoom bleibt
         lastOriginalShown = img;
         comparison.setOriginal(img);
     }
@@ -200,7 +191,7 @@ public final class MainFrame extends JFrame {
                 "Fehler", JOptionPane.ERROR_MESSAGE);
     }
 
-    /* ============================ View-Aufbau ============================ */
+    // --- Aufbau der Oberflaeche ---
 
     private JMenuBar buildMenuBar() {
         int mod = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
@@ -293,9 +284,7 @@ public final class MainFrame extends JFrame {
         return p;
     }
 
-    /* -------- Verdrahtung der Controller-Trigger -------- */
-
-    /** Setzt Action-Command und merkt das Widget für {@link #setController}. */
+    // setzt den Action-Command und merkt sich den Button fuer setController()
     private <T extends AbstractButton> T trigger(T button, String command) {
         button.setActionCommand(command);
         controllerTriggers.add(button);
@@ -314,9 +303,9 @@ public final class MainFrame extends JFrame {
         return b;
     }
 
-    /* ===================== Aktionen außerhalb des Use Case ===================== */
-    /* Export/Druck gehören laut Aufgabenstellung NICHT zum Use Case „Vorlage    */
-    /* erstellen". Sie holen die fertige Vorlage lesend über die Fassade ab.     */
+    // --- Aktionen ausserhalb des Use Case ---
+    /* Export und Druck gehoeren nicht zu "Vorlage erstellen". Sie holen sich die
+     * fertige Vorlage nur lesend ueber die Fassade. */
 
     private void exportPng() {
         if (!ensureTemplate()) return;

@@ -1,8 +1,6 @@
 package com.artcreator.statemachine.port;
 
-/**
- * Beobachtbares Subjekt im Sinne des Observer-Patterns.
- */
+// Subjekt im Observer-Pattern: hier melden sich die Beobachter an und ab.
 public interface Subject {
 
     void attach(Observer observer);

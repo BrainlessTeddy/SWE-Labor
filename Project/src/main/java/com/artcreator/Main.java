@@ -10,10 +10,8 @@ import com.artcreator.statemachine.port.StateMachine;
 import com.artcreator.ui.CreatorController;
 import com.artcreator.ui.MainFrame;
 
-/**
- * Entry point. Verdrahtet die Komponenten (Zustandsmaschine, Creator-Fassade,
- * View und Controller) und zeigt das Hauptfenster.
- */
+/* Startpunkt der Anwendung. Setzt die Komponenten zusammen (Zustandsmaschine,
+ * Creator-Fassade, View und Controller) und zeigt das Hauptfenster. */
 public final class Main {
 
     public static void main(String[] args) {
@@ -23,7 +21,7 @@ public final class Main {
             // fall back to the default Metal L&F; not fatal
         }
 
-        // Komponentenzugriff ausschließlich über die Fassaden/Factories.
+        // Zugriff auf die Komponenten nur ueber die Factories/Fassaden
         StateMachine stateMachine = StateMachineFactory.FACTORY.stateMachine();
         Creator creator = CreatorFactory.FACTORY.creator();
 

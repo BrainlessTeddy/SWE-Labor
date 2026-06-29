@@ -1,26 +1,18 @@
 package com.artcreator.statemachine.port;
 
-/**
- * Protokollautomat des Use Case „Vorlage erstellen".
+/* Die Zustaende des Use Case "Vorlage erstellen", als Baum:
  *
- * <p>Die Zustände bilden eine Hierarchie:</p>
- * <pre>
- * ROOT
- * ├── NO_IMAGE        (Startzustand: noch kein Bild geladen)
- * └── HAS_IMAGE       (Composite: ein Bild liegt vor)
- *     ├── IMAGE_LOADED
- *     ├── GENERATING
- *     └── TEMPLATE_READY
- * </pre>
+ *   ROOT
+ *   ├── NO_IMAGE        Start, noch kein Bild
+ *   └── HAS_IMAGE       ein Bild liegt vor
+ *       ├── IMAGE_LOADED
+ *       ├── GENERATING
+ *       └── TEMPLATE_READY
  *
- * <p>Gültige Trigger je Zustand:</p>
- * <ul>
- *   <li>{@code loadImage}        – gültig in jedem Zustand (Unterzustand von ROOT)</li>
- *   <li>{@code updateParameters} – gültig in jedem Zustand (Unterzustand von ROOT)</li>
- *   <li>{@code createTemplate}   – gültig sobald ein Bild vorliegt (Unterzustand von HAS_IMAGE)</li>
- *   <li>Ergebnis abholen         – nur in TEMPLATE_READY</li>
- * </ul>
- */
+ * Wann ist welche Operation erlaubt:
+ *   loadImage / updateParameters  -> immer (alles ist Unterzustand von ROOT)
+ *   createTemplate                -> nur wenn ein Bild da ist (unter HAS_IMAGE)
+ *   Ergebnis abholen              -> nur in TEMPLATE_READY */
 public enum CreatorState implements State {
 
     ROOT(null),
