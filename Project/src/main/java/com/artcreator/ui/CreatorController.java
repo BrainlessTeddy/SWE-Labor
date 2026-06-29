@@ -14,19 +14,13 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Controller des Use Case „Vorlage erstellen" (MVC).
- *
- * <p>Liest Eingaben aus der {@link MainFrame}-View und ruft die
- * Systemoperationen der {@link Creator}-Fassade ausschließlich
- * <b>asynchron</b> auf (Operationen sind {@code void}). Als {@link Observer}
- * ist der Controller bei der Zustandsmaschine registriert und aktualisiert die
- * View nach jeder Zustandsänderung, indem er die Ergebnisse aus der Fassade
- * <b>abholt</b>.</p>
- */
+/* Controller fuer den Use Case "Vorlage erstellen".
+ * Nimmt die Eingaben der View entgegen und ruft die Operationen der Creator-Fassade
+ * asynchron auf. Die Operationen sind void; das Ergebnis holt sich der Controller
+ * als Observer in update() ab, nachdem sich der Zustand geaendert hat. */
 public final class CreatorController implements ActionListener, Observer {
 
-    /** Action-Commands der von diesem Controller bedienten Buttons/Menüpunkte. */
+    // Namen der Buttons/Menuepunkte, die dieser Controller bedient
     public static final String CMD_OPEN_IMAGE   = "OPEN_IMAGE";
     public static final String CMD_REGENERATE   = "REGENERATE";
     public static final String CMD_UNDO         = "UNDO";
@@ -35,14 +29,14 @@ public final class CreatorController implements ActionListener, Observer {
     public static final String CMD_SAVE_AS      = "SAVE_AS";
     public static final String CMD_OPEN_PROJECT = "OPEN_PROJECT";
 
-    /** Verzögerung, bevor eine Parameteränderung eine Generierung auslöst. */
+    // Wartezeit, bis eine Parameteraenderung wirklich neu generiert
     private static final int DEBOUNCE_MS = 150;
 
     private final MainFrame view;
     private final Creator creator;
     private final Subject subject;
 
-    /** Entprellt schnelle Slider-Bewegungen zu einer Generierung (wie zuvor). */
+    // fasst schnelles Slider-Ziehen zu einer Generierung zusammen
     private final Timer paramDebounce;
 
     public CreatorController(MainFrame view, Creator creator, Subject subject) {
@@ -58,7 +52,7 @@ public final class CreatorController implements ActionListener, Observer {
         this.paramDebounce.setRepeats(false);
     }
 
-    /* -------- Eingaben (ActionListener) -------- */
+    // --- Eingaben (ActionListener) ---
 
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -70,17 +64,17 @@ public final class CreatorController implements ActionListener, Observer {
             case CMD_SAVE         -> save(creator.getProjectFile());
             case CMD_SAVE_AS      -> save(null);
             case CMD_OPEN_PROJECT -> openProject();
-            default -> { /* nicht für diesen Controller */ }
+            default -> { } // nicht fuer diesen Controller
         }
     }
 
-    /** Wird vom Parameter-Panel bei jeder Änderung aufgerufen (entprellt). */
+    // ruft das Parameter-Panel bei jeder Aenderung auf (mit Debounce)
     public void onParametersChanged() {
         paramDebounce.restart();
     }
 
     private void openImage() {
-        File file = view.chooseImageFile();   // UI-Dialog – synchron auf dem EDT
+        File file = view.chooseImageFile();   // Dialog laeuft auf dem EDT
         if (file == null) return;
         CompletableFuture
                 .runAsync(() -> creator.loadImage(file))
@@ -94,7 +88,7 @@ public final class CreatorController implements ActionListener, Observer {
                 });
     }
 
-    /** Undo/Redo: ausführen, danach die Slider an die wiederhergestellten Parameter angleichen. */
+    // Undo/Redo ausfuehren und danach die Slider auf die alten Werte zuruecksetzen
     private void restoreAsync(Runnable op) {
         CompletableFuture.runAsync(op)
                 .thenRun(() -> SwingUtilities.invokeLater(
@@ -127,7 +121,7 @@ public final class CreatorController implements ActionListener, Observer {
                 });
     }
 
-    /* -------- Zustandsänderungen (Observer) -------- */
+    // --- Zustandsaenderungen (Observer) ---
 
     @Override
     public void update(State newState) {
@@ -147,8 +141,8 @@ public final class CreatorController implements ActionListener, Observer {
             return;
         }
 
-        // Eingeschwungene Zustände: Anzeige aus dem Modell ableiten (Pull).
-        view.setOriginalImage(creator.getOriginal());   // Identitäts-geschützt in der View
+        // fertiger Zustand: Anzeige aus dem Modell holen
+        view.setOriginalImage(creator.getOriginal());   // View ignoriert gleiches Bild
         if (hasTemplate) {
             view.setPreview(creator.getPreview());
             Template t = creator.getTemplate();

@@ -2,15 +2,11 @@ package com.artcreator.creator;
 
 import com.artcreator.creator.port.Creator;
 
-/**
- * Zugang zur Creator-Komponente. Liefert über die zentrale {@link #FACTORY}
- * die Implementierung des fachlichen Ports {@link Creator}.
- */
+/* Einstieg in die Creator-Komponente. Ueber FACTORY kommt man an die Fassade,
+ * creator() gibt die Implementierung des Creator-Interface zurueck. */
 public interface CreatorFactory {
 
-    /** Statischer Zugriff auf die Fassade. */
-    CreatorFactory FACTORY = new CreatorFacade();
+    CreatorFactory FACTORY = new CreatorFacade();   // einziger Zugang von aussen
 
-    /** Liefert die Implementierung des Interface {@link Creator}. */
     Creator creator();
 }

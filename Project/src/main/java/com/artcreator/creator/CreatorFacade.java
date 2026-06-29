@@ -13,15 +13,9 @@ import com.artcreator.statemachine.port.StateMachine;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
-/**
- * Fassade der Creator-Komponente.
- *
- * <p>Überwacht den Zugriff auf die Systemoperationen: vor jeder Operation wird
- * geprüft, ob sie im aktuellen Zustand ein gültiger Trigger ist; danach wird
- * der von der Implementierung gelieferte Folgezustand in die Zustandsmaschine
- * geschrieben. Die Operationen sind synchronisiert, damit nebenläufige Aufrufe
- * (asynchrone Controller) den Zustand nicht verschränken.</p>
- */
+/* Fassade der Creator-Komponente. Prueft vor jeder Operation den Zustand,
+ * gibt sie an die Implementierung weiter und setzt danach den neuen Zustand.
+ * Alles synchronized, damit sich die asynchronen Aufrufe nicht ins Gehege kommen. */
 public final class CreatorFacade implements CreatorFactory, Creator {
 
     private CreatorImpl creatorImpl;
@@ -29,14 +23,14 @@ public final class CreatorFacade implements CreatorFactory, Creator {
 
     @Override
     public Creator creator() {
-        if (this.creatorImpl == null) { /* lazy initialization */
+        if (this.creatorImpl == null) { // erst beim ersten Zugriff anlegen
             this.stateMachine = StateMachineFactory.FACTORY.stateMachine();
             this.creatorImpl = new CreatorImpl();
         }
         return this;
     }
 
-    /* -------- Systemoperationen (abgesichert + synchronisiert) -------- */
+    // --- Systemoperationen ---
 
     @Override
     public synchronized void loadImage(File file) {
@@ -49,7 +43,7 @@ public final class CreatorFacade implements CreatorFactory, Creator {
     public synchronized void updateParameters(Parameters params) {
         if (!stateMachine.getState().isSubStateOf(CreatorState.ROOT)) return;
         creatorImpl.updateParameters(params);
-        // kein Zustandsübergang: reine Parameterübernahme
+        // nur Parameter uebernehmen, kein Zustandswechsel
     }
 
     @Override
@@ -76,7 +70,7 @@ public final class CreatorFacade implements CreatorFactory, Creator {
 
     @Override
     public synchronized void saveProject(File file) {
-        creatorImpl.saveProject(file);   // wirft UncheckedIOException bei Fehler
+        creatorImpl.saveProject(file);   // Fehler kommt als UncheckedIOException
     }
 
     @Override
@@ -85,7 +79,7 @@ public final class CreatorFacade implements CreatorFactory, Creator {
         stateMachine.setState(creatorImpl.openProject(file));
     }
 
-    /* -------- Subject (delegiert an die Zustandsmaschine) -------- */
+    // --- Observer an-/abmelden (geht an die Zustandsmaschine) ---
 
     @Override
     public void attach(Observer observer) {
@@ -97,7 +91,7 @@ public final class CreatorFacade implements CreatorFactory, Creator {
         stateMachine.detach(observer);
     }
 
-    /* -------- reads -------- */
+    // --- Getter, um das Ergebnis abzuholen ---
 
     @Override
     public State getState() {

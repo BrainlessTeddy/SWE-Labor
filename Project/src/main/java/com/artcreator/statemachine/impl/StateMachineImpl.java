@@ -1,20 +1,16 @@
 package com.artcreator.statemachine.impl;
 
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import com.artcreator.statemachine.port.CreatorState;
 import com.artcreator.statemachine.port.Observer;
 import com.artcreator.statemachine.port.State;
 import com.artcreator.statemachine.port.StateMachine;
 
-import java.util.concurrent.CopyOnWriteArrayList;
-
-/**
- * Implementierung der Zustandsmaschine.
- *
- * <p>Hält den aktuellen Zustand und eine Liste registrierter Beobachter. Der
- * Zustandszugriff ist synchronisiert; die Benachrichtigung der Beobachter
- * erfolgt außerhalb des Locks über eine {@link CopyOnWriteArrayList}, damit
- * Beobachter nicht reentrant in den Lock laufen.</p>
- */
+/* Implementierung der Zustandsmaschine. Haelt den aktuellen Zustand und die
+ Liste der Beobachter. Der Zugriff auf den Zustand ist synchronized; die
+ Beobachter werden ausserhalb des Locks benachrichtigt (CopyOnWriteArrayList),
+ damit es keine Probleme gibt, wenn ein Beobachter selbst wieder zugreift. */
 public final class StateMachineImpl implements StateMachine {
 
     private State current = CreatorState.NO_IMAGE;
